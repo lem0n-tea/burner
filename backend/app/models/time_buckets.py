@@ -33,5 +33,5 @@ class TimeBucket(Base):
             "period_type",
             "period_start",
             name="uq_timebucket_host_period"
-        )
+        ),
     )
