@@ -10,11 +10,11 @@ app = FastAPI(
     openapi_tags=[
         {
             "name": "flush",
-            "description": "Endpoints for flushing time. Used by frontend to send recorded data"
+            "description": "Endpoints for flushing time sessions. Used by frontend to send recorded data"
         },
         {
             "name": "pull",
-            "description": "Endpoints for pulling aggregated user data. Used by fronend to request user statistics"
+            "description": "Endpoints for pulling aggregated user data. Used by frontend to request user statistics"
         }
     ]
 )
