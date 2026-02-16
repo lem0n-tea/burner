@@ -8,7 +8,7 @@ class Host(Base):
     __tablename__ = "hosts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     time_buckets: Mapped[list["TimeBucket"]] = relationship("TimeBucket", back_populates="host", # type: ignore

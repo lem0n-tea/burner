@@ -39,6 +39,10 @@ class SessionList(BaseModel):
     """
     Schema is used for submitting recorded data by frontend
     """
+    total: Annotated[
+        int,
+        Field(..., ge=0, description="Total number of submitted sessions")
+    ]
     sessions: Annotated[
         list[Session],
         Field(default_factory=list, description="List of recorded sessions")
@@ -73,27 +77,3 @@ class Host(BaseModel):
     ]
 
     model_config = ConfigDict(from_attributes=True)
-
-class GroupCreate(BaseModel):
-    """
-    Group model for POST and PUT requests
-    """
-    name: Annotated[
-        str,
-        Field(..., min_length=1, max_length=50,
-              description="Name of a group")
-    ]
-
-class Group(BaseModel):
-    """
-    Group is a customizable collection of hosts
-    Model for GET requests
-    """
-    id: Annotated[
-        int,
-        Field(..., description="Group ID")
-    ]
-    hosts: Annotated[
-        list[Host],
-        Field(default_factory=list, description="Collection of hosts")
-    ]

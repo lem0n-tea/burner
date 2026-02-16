@@ -3,12 +3,7 @@ from sqlalchemy import Integer, ForeignKey, DateTime, Date, Enum, BigInteger, fu
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-
-
-class PeriodType(enum.Enum):
-    DAY = "day"
-    WEEK = "week"
-    MONTH = "month"
+from app.time_splitting import PeriodType
 
 
 class TimeBucket(Base):
