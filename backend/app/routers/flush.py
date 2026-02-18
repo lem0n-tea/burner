@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,10 +52,15 @@ async def flush_data(
     db: AsyncSession = Depends(get_async_db)
 ) -> dict:
     accepted = 0
+    rejected_sessions = []
+    processed_sessions = []
 
     for session in payload.sessions:
         
-        # ADD DE-DUPLICATION WITH UUID
+        # REMAKE DE-DUPLICATION TO WORK ACROSS MULTIPLE REQUESTS
+        if session.id in processed_sessions:
+            rejected_sessions.append(session.id)
+            continue
 
         # Convert to UTC
         start_utc = session.start.astimezone(timezone.utc)
@@ -64,6 +69,7 @@ async def flush_data(
         # Calculate session duration
         duration = int((end_utc - start_utc).total_seconds())
         if duration <= 0:
+            rejected_sessions.append(session.id)
             continue
 
         # Check if host exists in database. If not, create
@@ -94,10 +100,14 @@ async def flush_data(
             )
             
         accepted += 1
+        processed_sessions.append(session.id)
 
     await db.commit()
 
     return {
         "message": "Data has been stored",
-        "success_rate": f"{accepted} / {payload.total}"
+        "received": {payload.total},
+        "accepted": {accepted},
+        "success_rate": f"{accepted} / {payload.total}",
+        "rejected_session_ids": rejected_sessions
     }
