@@ -6,8 +6,10 @@ let unsentSessions = [];
 
 const STORAGE_KEY = "time_tracking_state";
 
-const FLUSH_INTERVAL_MS = 1 * 60 * 1000; // 5 minutes
+const FLUSH_INTERVAL_MS = 1 * 30 * 1000; // 0.5 minutes
+const MAX_SESSION_MS = 15 * 60 * 1000; // 15 minutes
 let flushInterval = null;
+let isFlushing = false;
 
 const FILTERS_KEY = "tracking_filters";
 let trackingMode = "WHITELIST"; // "ALL" | "WHITELIST"
@@ -80,7 +82,9 @@ function finalizeActiveHost() {
 
   const start = activeStart;
   const end = Date.now();
-  const elapsed = Date.now() - activeStart;
+  
+  const rawElapsed = end - start;
+  const elapsed = Math.min(rawElapsed, MAX_SESSION_MS);
 
   // Ignore micro sessions
   if (elapsed < 1000) {
@@ -139,31 +143,79 @@ async function switchToHost(newHost) {
 ----------------------------- */
 
 async function flushSessions() {
-  if (unsentSessions.length === 0) return;
+  if (isFlushing) return;
+  isFlushing = true;
 
-  const payload = {
-    total: unsentSessions.length,
-    sessions: unsentSessions
-  };
+  // If currently tracking, temporarily finalize
+  let hadActive = false;
 
-  try {
-    const response = await fetch("http://127.0.0.1:8000/flush/time/mock", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload)
-    });
+  if (activeHost && activeStart && isHostTracked(activeHost)) {
+    hadActive = true;
+    finalizeActiveHost();
+  }
 
-    const result = await response.json();
-    console.log(result);
+  if (unsentSessions.length > 0) {
+    const payload = {
+      total: unsentSessions.length,
+      sessions: unsentSessions
+    };
 
-    // Clear only if successful
-    unsentSessions = [];
+    try {
+      const response = await fetch("http://127.0.0.1:8000/flush/time/mock", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // Clear only if successful
+      if (response.ok) {
+        unsentSessions = [];
+        await saveState();
+      }
+
+      if (response.headers.get("content-type")?.includes("application/json")) {
+        const result = await response.json();
+        console.log(result);
+      }
+
+    } catch (err) {
+      console.error("Flush failed:", err);
+    } finally {
+      isFlushing = false;
+    }
+  }
+
+  // Resume tracking immediately
+  if (hadActive) {
+    activeStart = Date.now();
     await saveState();
+  }
+}
 
-  } catch (err) {
-    console.error("Flush failed:", err);
+async function recoverInterruptedSession() {
+  if (activeHost && activeStart) {
+    const now = Date.now();
+
+    const elapsed = now - activeStart;
+
+    const safeElapsed = Math.min(elapsed, MAX_SESSION_MS);
+
+    if (safeElapsed > 1000) {
+      unsentSessions.push({
+        id: crypto.randomUUID(),
+        host: activeHost,
+        start: new Date(activeStart).toISOString(),
+        end: new Date(activeStart + safeElapsed).toISOString()
+      });
+
+      timeByHost[activeHost] =
+        (timeByHost[activeHost] || 0) + safeElapsed;
+    }
+
+    activeStart = null;
+    await saveState();
   }
 }
 
@@ -293,15 +345,27 @@ browser.storage.onChanged.addListener(async (changes, area) => {
     }
 
     trackingMode = changes[FILTERS_KEY].newValue.mode;
-    console.log("Background - Tracking mode updated:", trackingMode);
 
     // Re-evaluate current host under new rules
     await switchToHost(activeHost);
   }
 });
 
+// Save active session on browser shutdown
+browser.runtime.onSuspend.addListener(() => {
+  finalizeActiveHost();
+  saveState();
+});
 
+
+// Start
 (async function bootstrap() {
+  await loadState();
+
+  await recoverInterruptedSession();
+  await flushSessions();
+  
   await initFromActiveTab();
   startFlushLoop();
 })();
+
