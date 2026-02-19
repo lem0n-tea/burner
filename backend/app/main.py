@@ -1,4 +1,5 @@
 from fastapi import FastAPI, status
+from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import flush
 
@@ -17,6 +18,18 @@ app = FastAPI(
             "description": "Endpoints for pulling aggregated user data. Used by frontend to request user statistics"
         }
     ]
+)
+
+origins = [
+    '*',
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
 app.include_router(flush.router)

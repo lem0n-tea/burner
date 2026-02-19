@@ -111,3 +111,9 @@ async def flush_data(
         "success_rate": f"{accepted} / {payload.total}",
         "rejected_session_ids": rejected_sessions
     }
+
+@router.post("/time/mock", status_code=status.HTTP_201_CREATED)
+async def mock_flush_data_request(
+    payload: SessionList
+):
+    return payload

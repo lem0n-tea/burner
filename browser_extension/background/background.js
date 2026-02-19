@@ -2,7 +2,12 @@ let activeHost = null;
 let activeStart = null;
 let timeByHost = {};
 
+let unsentSessions = [];
+
 const STORAGE_KEY = "time_tracking_state";
+
+const FLUSH_INTERVAL_MS = 1 * 60 * 1000; // 5 minutes
+let flushInterval = null;
 
 const FILTERS_KEY = "tracking_filters";
 let trackingMode = "WHITELIST"; // "ALL" | "WHITELIST"
@@ -48,7 +53,8 @@ async function saveState() {
     [STORAGE_KEY]: {
       activeHost,
       activeStart,
-      timeByHost
+      timeByHost,
+      unsentSessions
     }
   });
 }
@@ -61,6 +67,7 @@ async function loadState() {
   activeHost = state.activeHost;
   activeStart = state.activeStart;
   timeByHost = state.timeByHost || {};
+  unsentSessions = state.unsentSessions || [];
   return true;
 }
 
@@ -71,9 +78,25 @@ async function loadState() {
 function finalizeActiveHost() {
   if (!activeHost || !activeStart) return;
 
+  const start = activeStart;
+  const end = Date.now();
   const elapsed = Date.now() - activeStart;
+
+  // Ignore micro sessions
+  if (elapsed < 1000) {
+    activeStart = null;
+    return;
+  }
+
   timeByHost[activeHost] =
     (timeByHost[activeHost] || 0) + elapsed;
+
+  unsentSessions.push({
+    id: crypto.randomUUID(),
+    host: activeHost,
+    start: new Date(start).toISOString(),
+    end: new Date(end).toISOString()
+  });
 
   activeStart = null;
 }
@@ -112,6 +135,39 @@ async function switchToHost(newHost) {
 }
 
 /* -----------------------------
+   Session flushing
+----------------------------- */
+
+async function flushSessions() {
+  if (unsentSessions.length === 0) return;
+
+  const payload = {
+    total: unsentSessions.length,
+    sessions: unsentSessions
+  };
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/flush/time/mock", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    console.log(result);
+
+    // Clear only if successful
+    unsentSessions = [];
+    await saveState();
+
+  } catch (err) {
+    console.error("Flush failed:", err);
+  }
+}
+
+/* -----------------------------
    Filters (tracking mode)
 ----------------------------- */
 
@@ -142,6 +198,14 @@ async function initFromActiveTab() {
   if (!tab || !tab.url) return;
 
   await switchToHost(getHostFromUrl(tab.url));
+}
+
+function startFlushLoop() {
+  if (flushInterval) return;
+
+  flushInterval = setInterval(async () => {
+    await flushSessions();
+  }, FLUSH_INTERVAL_MS);
 }
 
 /* -----------------------------
@@ -235,3 +299,9 @@ browser.storage.onChanged.addListener(async (changes, area) => {
     await switchToHost(activeHost);
   }
 });
+
+
+(async function bootstrap() {
+  await initFromActiveTab();
+  startFlushLoop();
+})();
