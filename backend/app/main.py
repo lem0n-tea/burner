@@ -1,22 +1,18 @@
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import flush
+from .routers import time
 
 
 app = FastAPI(
     title="Burner - Time Tracker",
     description="App designed to discourage you from wasting time online",
-    version="1.0",
+    version="0.1",
     openapi_tags=[
         {
-            "name": "flush",
-            "description": "Endpoints for flushing time sessions. Used by frontend to send recorded data"
+            "name": "time",
+            "description": "Endpoints for managing time data (flushing sessions, pulling statistics)."
         },
-        {
-            "name": "pull",
-            "description": "Endpoints for pulling aggregated user data. Used by frontend to request user statistics"
-        }
     ]
 )
 
@@ -32,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-app.include_router(flush.router)
+app.include_router(time.router)
 
 @app.get("/", status_code=status.HTTP_200_OK)
 async def health_check() -> dict:

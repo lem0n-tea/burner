@@ -12,8 +12,8 @@ from app.time_splitting import split_into_buckets, PeriodType
 
 
 router = APIRouter(
-    prefix="/flush",
-    tags=["flush"]
+    prefix="/time",
+    tags=["time"]
 )
 
 async def upsert_time_buckets(
@@ -46,8 +46,8 @@ async def upsert_time_buckets(
 
     await db.execute(upsert_stmt)
 
-@router.post("/time", status_code=status.HTTP_201_CREATED)
-async def flush_data(
+@router.post("/flush", status_code=status.HTTP_201_CREATED)
+async def flush_recorded_sessions(
     payload: SessionList,
     db: AsyncSession = Depends(get_async_db)
 ) -> dict:
@@ -112,7 +112,7 @@ async def flush_data(
         "rejected_session_ids": rejected_sessions
     }
 
-@router.post("/time/mock", status_code=status.HTTP_201_CREATED)
+@router.post("/flush/mock", status_code=status.HTTP_201_CREATED)
 async def mock_flush_data_request(
     payload: SessionList
 ):
