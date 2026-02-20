@@ -1,5 +1,5 @@
 from fastapi import APIRouter, status, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import timezone, date
@@ -117,3 +117,13 @@ async def mock_flush_data_request(
     payload: SessionList
 ):
     return payload
+
+
+@router.delete("/all", status_code=status.HTTP_200_OK)
+async def wipe_all_time(
+    db: AsyncSession = Depends(get_async_db)
+) -> dict:
+    await db.execute(delete(TimeBucketModel))
+    await db.commit()
+
+    return {"message": "All time buckets deleted"}

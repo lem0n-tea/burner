@@ -143,7 +143,11 @@ async function switchToHost(newHost) {
 ----------------------------- */
 
 async function flushSessions() {
-  if (isFlushing) return;
+  console.log("flushSession called")
+  if (isFlushing) {
+    console.log("Returned because flushing in progress")
+    return;
+  }
   isFlushing = true;
 
   // If currently tracking, temporarily finalize
@@ -159,9 +163,9 @@ async function flushSessions() {
       total: unsentSessions.length,
       sessions: unsentSessions
     };
-
+    console.log("hello")
     try {
-      const response = await fetch("http://127.0.0.1:8000/flush/time/mock", {
+      const response = await fetch("http://127.0.0.1:8000/time/flush", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -192,6 +196,8 @@ async function flushSessions() {
     activeStart = Date.now();
     await saveState();
   }
+
+  isFlushing = false;
 }
 
 async function recoverInterruptedSession() {
@@ -227,8 +233,11 @@ async function loadFilters() {
   const result = await browser.storage.local.get(FILTERS_KEY);
   const filters = result[FILTERS_KEY];
 
-  if (filters?.mode) {
-    trackingMode = filters.mode;
+  if (filters) {
+    if (filters.mode) trackingMode = filters.mode;
+    if (filters.list) {
+      whitelist = new Set(filters.list); 
+    }
   }
 }
 
@@ -237,8 +246,6 @@ async function loadFilters() {
 ----------------------------- */
 
 async function initFromActiveTab() {
-  await loadFilters();
-
   const restored = await loadState();
   if (restored && activeHost && activeStart) return;
 
@@ -360,12 +367,22 @@ browser.runtime.onSuspend.addListener(() => {
 
 // Start
 (async function bootstrap() {
+  // 1. Load the rules
+  await loadFilters();
+
+  // 2. Load the previous state
   await loadState();
 
+  // 3. Process any leftovers from the last time the browser was open
   await recoverInterruptedSession();
-  await flushSessions();
   
+  // 4. Try to send anything pending immediately
+  await flushSessions();
+
+  // 5. Figure out what the user is looking at right now
   await initFromActiveTab();
+  
+  // 6. Start the background loops
   startFlushLoop();
 })();
 
