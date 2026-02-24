@@ -11,5 +11,5 @@ class Host(Base):
     name: Mapped[str] = mapped_column(String(256), unique=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    time_buckets: Mapped[list["TimeBucket"]] = relationship("TimeBucket", back_populates="host", # type: ignore
-                                                            cascade="all, delete-orphan")
+    daily_time_buckets: Mapped[list["DailyTimeBucket"]] = relationship("DailyTimeBucket", # type: ignore
+                                                            back_populates="host", cascade="all, delete-orphan")

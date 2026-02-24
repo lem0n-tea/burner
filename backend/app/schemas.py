@@ -20,11 +20,11 @@ class Session(BaseModel):
     ]
     start: Annotated[
         datetime,
-        Field(..., description="Start timestamp of the session")
+        Field(..., description="Start UTC timestamp of the session")
     ]
     end: Annotated[
         datetime,
-        Field(..., description="End timestamp of the session")
+        Field(..., description="End UTC timestamp of the session")
     ]
 
     @field_validator("end")
@@ -42,6 +42,10 @@ class SessionList(BaseModel):
     total: Annotated[
         int,
         Field(..., ge=0, description="Total number of submitted sessions")
+    ]
+    timezone: Annotated[
+        str,
+        Field(..., min_length=1, max_length=64, description="Name of local IANA timezone")
     ]
     sessions: Annotated[
         list[Session],

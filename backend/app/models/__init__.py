@@ -1,5 +1,5 @@
 from .hosts import Host
-from .time_buckets import TimeBucket
+from .daily_time_buckets import DailyTimeBucket
 
 
-__all__ = ["Host", "TimeBucket"]
+__all__ = ["Host", "DailyTimeBucket"]

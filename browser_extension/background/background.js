@@ -143,9 +143,7 @@ async function switchToHost(newHost) {
 ----------------------------- */
 
 async function flushSessions() {
-  console.log("flushSession called")
   if (isFlushing) {
-    console.log("Returned because flushing in progress")
     return;
   }
   isFlushing = true;
@@ -163,7 +161,7 @@ async function flushSessions() {
       total: unsentSessions.length,
       sessions: unsentSessions
     };
-    console.log("hello")
+
     try {
       const response = await fetch("http://127.0.0.1:8000/time/flush", {
         method: "POST",
