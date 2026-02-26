@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field, ConfigDict, field_validator, ValidationInfo
-from typing import Annotated
+from pydantic import BaseModel, Field, ConfigDict, field_validator, ValidationInfo, model_validator
+from typing import Annotated, Literal
 from datetime import datetime
 from uuid import UUID
 
+from app.time_splitting import PeriodType
 
 class Session(BaseModel):
     """
@@ -52,32 +53,123 @@ class SessionList(BaseModel):
         Field(default_factory=list, description="List of recorded sessions")
     ]
 
-class HostCreate(BaseModel):
+class DailyStatistics(BaseModel):
     """
-    Host model for POST and PUT requests
+    Model that represents daily time records
+    Daily time buckets aggregated for one date accross all hosts
     """
-    hostname: Annotated[
+    date: Annotated[
         str,
-        Field(..., min_length=1, max_length=256,
-              description="Normalized hostname")
+        Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", 
+              description="ISO formatted string representing date")
+    ]
+    seconds: Annotated[
+        int,
+        Field(..., ge=0, description="Total number of seconds recorded that date")
+    ]
+
+class VisualizationBase(BaseModel):
+    """
+    Model to collect data for visualization purposes
+    """
+    days: Annotated[
+        int,
+        Field(..., ge=0, description="Number of days for graph")
+    ]
+    records: Annotated[
+        list[DailyStatistics],
+        Field(default_factory=list, description="Records from chosen period")
+    ]
+
+    @model_validator(mode="after")
+    def check_records_length(self):
+        if len(self.records) != self.days:
+            raise ValueError("records length must be equal to days")
+        return self
+    
+    model_config = ConfigDict(extra='forbid')
+
+
+class Graph(VisualizationBase):
+    """
+    Model to collect data for graph build
+    """
+    days: Annotated[
+        Literal[7, 30],
+        Field(..., description="Number of days for graph (7 or 30)")
+    ]
+    
+class Heatmap(VisualizationBase):
+    """
+    Model to collect data for heatmap build
+    """
+    days: Annotated[
+        Literal[30, 365],
+        Field(..., description="Number of days for heatmap (30 or 365)")
     ]
 
 class Host(BaseModel):
     """
-    Host represents web hosts data
-    Model for GET requests
+    Model that represents web host data with aggregated
+    time spent for a specific period
     """
     id: Annotated[
         int,
-        Field(..., description="Host ID")
+        Field(..., ge=1, description="Host ID")
     ]
     hostname: Annotated[
         str,
-        Field(..., description="Normalized hostname")
+        Field(..., min_length=1, description="Normalized hostname")
     ]
-    is_active: Annotated[
-        bool,
-        Field(..., description="If flag is False, host is soft-deleted")
+    seconds: Annotated[
+        int,
+        Field(..., ge=0, description="Seconds spent on host")
     ]
 
-    model_config = ConfigDict(from_attributes=True)
+class TopHosts(BaseModel):
+    """
+    Model that represents most popular hosts (most time spent)
+    """
+    total: Annotated[
+        int,
+        Field(..., ge=0, description="Number of top hosts selected")
+    ]
+    hosts: Annotated[
+        list[Host],
+        Field(default_factory=list, description="List of hosts")
+    ]
+
+    @model_validator(mode="after")
+    def check_records_length(self):
+        if len(self.hosts) != self.total:
+            raise ValueError("records length must be equal to days")
+        return self
+
+class Statistics(BaseModel):
+    """
+    Model used to pull user statistics to display in GUI
+    """
+    period: Annotated[
+        PeriodType,
+        Field(..., description="Chosen period of statistics")
+    ]
+    today_total: Annotated[
+        int,
+        Field(..., ge=0, description="Total seconds for local current date")
+    ]
+    period_total: Annotated[
+        int,
+        Field(..., ge=0, description="Total seconds for chosen period")
+    ]
+    graph: Annotated[
+        Graph,
+        Field(..., description="Records for graph building")
+    ]
+    heatmap: Annotated[
+        Heatmap,
+        Field(..., description="Records for heatmap building")
+    ]
+    top_hosts: Annotated[
+        TopHosts,
+        Field(..., description="Top hosts by time spent")
+    ]

@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app.schemas import SessionList
 from app.models.hosts import Host as HostModel
-from backend.app.models.daily_time_buckets import DailyTimeBucket as DailyTimeBucketModel
+from app.models.daily_time_buckets import DailyTimeBucket as DailyTimeBucketModel
 from app.db_depends import get_async_db
 from app.time_splitting import split_into_daily_buckets, PeriodType
 
@@ -43,6 +43,114 @@ async def upsert_time_buckets(
     )
 
     await db.execute(upsert_stmt)  
+
+'''async def build_time_stats(
+    db: AsyncSession,
+    period: str,
+    user_tz: str
+):
+    """
+    Builds user's time stats for chosen period adjusted to local timezone
+    """
+    start_utc, end_utc, tz = get_local_period_range(period, user_tz)
+
+    buckets = await fetch_time_buckets(db, start_utc, end_utc)
+
+    daily_totals = defaultdict(int)
+    host_totals = defaultdict(int)
+    
+    for bucket in buckets:
+        bucket_start_utc = datetime.combine(
+            bucket.period_start,
+            datetime.min.time(),
+            timezone.utc
+        )
+
+        overlap_seconds = compute_overlap(bucket_start_utc, start_utc, end_utc)
+
+        if overlap_seconds <= 0:
+            continue
+
+        # Convert overlap start to local date
+        overlap_local_date = (
+            max(bucket_start_utc, start_utc)
+            .astimezone(tz)
+            .date()
+        )
+
+        daily_totals[overlap_local_date] += overlap_seconds
+        host_totals[bucket.host_id] += overlap_seconds
+
+    # Summary
+    today_local = datetime.now(tz).date()
+    today_seconds = daily_totals.get(today_local, 0)
+    
+    period_total_seconds = 0
+
+    # Graph
+    graph_days = 7 if period == "week" else 30
+    graph_data = []
+
+    for i in range(graph_days):
+        day = today_local - timedelta(days=(graph_days - 1 - i))
+        seconds = daily_totals.get(day, 0)
+        
+        graph_data.append({
+            "date": day.isoformat(),
+            "seconds": seconds
+        })
+        period_total_seconds += seconds
+
+    # Heatmap
+    heatmap_days = 30 if period == "week" else 365
+    heatmap_data = []
+
+    for i in range(heatmap_days):
+        day = today_local - timedelta(days=(heatmap_days - 1 - i))
+        heatmap_data.append({
+            "date": day.isoformat(),
+            "seconds": daily_totals.get(day, 0)
+        })
+
+    # Top hosts
+    top_hosts = sorted(
+        host_totals.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:5]
+
+    top_hosts_data = [
+        {
+            "host_id": host_id,
+            "seconds": seconds
+        }
+        for host_id, seconds in top_hosts
+    ]
+
+    return {
+        "summary": {
+            "today_seconds": today_seconds,
+            "period_seconds": period_total_seconds
+        },
+        "graph": {
+            "days": graph_days,
+            "data": graph_data
+        },
+        "heatmap": {
+            "days": heatmap_days,
+            "data": heatmap_data,
+        },
+        "top_hosts": top_hosts_data,
+    }'''
+
+async def build_stats(
+    db: AsyncSession,
+    period: str,
+    user_tz: str
+):
+    """
+    Builds user's time stats for chosen period adjusted to local timezone
+    """
 
 @router.post("/flush", status_code=status.HTTP_201_CREATED)
 async def flush_recorded_sessions(
