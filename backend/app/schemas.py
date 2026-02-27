@@ -153,6 +153,16 @@ class Statistics(BaseModel):
         PeriodType,
         Field(..., description="Chosen period of statistics")
     ]
+    range_start: Annotated[
+        str,
+        Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", 
+              description="ISO formated first date in stats window")
+    ]
+    range_end: Annotated[
+        str,
+        Field(..., pattern=r"^\d{4}-\d{2}-\d{2}$", 
+              description="ISO formated last date in stats window")
+    ]
     today_total: Annotated[
         int,
         Field(..., ge=0, description="Total seconds for local current date")

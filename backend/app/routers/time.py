@@ -1,11 +1,11 @@
 from fastapi import APIRouter, status, Depends, Query, HTTPException
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import date
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from app.schemas import SessionList
+from app.schemas import SessionList, Statistics, DailyStatistics, Graph, Heatmap, TopHosts, Host
 from app.models.hosts import Host as HostModel
 from app.models.daily_time_buckets import DailyTimeBucket as DailyTimeBucketModel
 from app.db_depends import get_async_db
@@ -42,115 +42,59 @@ async def upsert_time_buckets(
         }
     )
 
-    await db.execute(upsert_stmt)  
+    await db.execute(upsert_stmt)
 
-'''async def build_time_stats(
-    db: AsyncSession,
-    period: str,
-    user_tz: str
-):
-    """
-    Builds user's time stats for chosen period adjusted to local timezone
-    """
-    start_utc, end_utc, tz = get_local_period_range(period, user_tz)
-
-    buckets = await fetch_time_buckets(db, start_utc, end_utc)
-
-    daily_totals = defaultdict(int)
-    host_totals = defaultdict(int)
-    
-    for bucket in buckets:
-        bucket_start_utc = datetime.combine(
-            bucket.period_start,
-            datetime.min.time(),
-            timezone.utc
+def validate_timezone(tz) -> None:
+    try:
+        ZoneInfo(tz)
+    except ZoneInfoNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid timezone"
         )
-
-        overlap_seconds = compute_overlap(bucket_start_utc, start_utc, end_utc)
-
-        if overlap_seconds <= 0:
-            continue
-
-        # Convert overlap start to local date
-        overlap_local_date = (
-            max(bucket_start_utc, start_utc)
-            .astimezone(tz)
-            .date()
-        )
-
-        daily_totals[overlap_local_date] += overlap_seconds
-        host_totals[bucket.host_id] += overlap_seconds
-
-    # Summary
-    today_local = datetime.now(tz).date()
-    today_seconds = daily_totals.get(today_local, 0)
     
-    period_total_seconds = 0
-
-    # Graph
-    graph_days = 7 if period == "week" else 30
-    graph_data = []
-
-    for i in range(graph_days):
-        day = today_local - timedelta(days=(graph_days - 1 - i))
-        seconds = daily_totals.get(day, 0)
-        
-        graph_data.append({
-            "date": day.isoformat(),
-            "seconds": seconds
-        })
-        period_total_seconds += seconds
-
-    # Heatmap
-    heatmap_days = 30 if period == "week" else 365
-    heatmap_data = []
-
-    for i in range(heatmap_days):
-        day = today_local - timedelta(days=(heatmap_days - 1 - i))
-        heatmap_data.append({
-            "date": day.isoformat(),
-            "seconds": daily_totals.get(day, 0)
-        })
-
-    # Top hosts
-    top_hosts = sorted(
-        host_totals.items(),
-        key=lambda x: x[1],
-        reverse=True
-    )[:5]
-
-    top_hosts_data = [
-        {
-            "host_id": host_id,
-            "seconds": seconds
-        }
-        for host_id, seconds in top_hosts
-    ]
-
-    return {
-        "summary": {
-            "today_seconds": today_seconds,
-            "period_seconds": period_total_seconds
-        },
-        "graph": {
-            "days": graph_days,
-            "data": graph_data
-        },
-        "heatmap": {
-            "days": heatmap_days,
-            "data": heatmap_data,
-        },
-        "top_hosts": top_hosts_data,
-    }'''
-
-async def build_stats(
+async def build_date_totals_collection(
     db: AsyncSession,
-    period: str,
-    user_tz: str
-):
+    range_length: int,
+    start: date,
+    end: date
+) -> list[DailyStatistics]:
     """
-    Builds user's time stats for chosen period adjusted to local timezone
+    Builds a list of all dates within a range
+    with total seconds for each
     """
+    # Build date window
+    window_dates = [start + timedelta(days=i) for i in range(range_length)]
+    
+    # Query for time buckets grouped by date within range
+    stmt = (
+        select(
+            DailyTimeBucketModel.date,
+            func.sum(DailyTimeBucketModel.duration_seconds)
+        )
+        .where(DailyTimeBucketModel.date.between(start, end))
+        .group_by(DailyTimeBucketModel.date)
+        .order_by(DailyTimeBucketModel.date)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+
+    # Convert to dict
+    daily_totals_db = {row[0]: row[1] for row in rows}
+
+    # Fill in missing dates with 0 seconds
+    daily_records = []
+    for date in window_dates:
+        seconds = daily_totals_db.get(date, 0)
+
+        daily_records.append(
+            DailyStatistics(
+                date=date.isoformat(),
+                seconds=seconds
+            )
+        )
+    
+    return daily_records
 
 @router.post("/flush", status_code=status.HTTP_201_CREATED)
 async def flush_recorded_sessions(
@@ -160,13 +104,7 @@ async def flush_recorded_sessions(
     
     # Validate user timezone
     user_timezone = payload.timezone
-    try:
-        ZoneInfo(user_timezone)
-    except ZoneInfoNotFoundError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid timezone"
-        )
+    validate_timezone(user_timezone)
     
     accepted = 0
     rejected_session_ids = []
@@ -188,7 +126,6 @@ async def flush_recorded_sessions(
         host = await db.scalar(
             select(HostModel).where(
                 HostModel.name == session.host,
-                HostModel.is_active == True
             )
         )
         if host is None:
@@ -234,14 +171,91 @@ async def mock_flush_data_request(
 ):
     return payload
 
-@router.get("/stats", status_code=status.HTTP_200_OK)
+@router.get("/stats", response_model=Statistics, status_code=status.HTTP_200_OK)
 async def get_time_statistics(
     period: PeriodType = Query(..., description="Period type (week/month)"),
-    timezone: int = Query(..., ge=-12, le=14, description="User's UTC offset"),
+    timezone: str = Query(..., description="IANA name for user timezone"),
     db: AsyncSession = Depends(get_async_db)
 ):
-    pass
+    # Validate user timezone
+    validate_timezone(timezone)
 
+    # Compute current local date
+    today_local = datetime.now(ZoneInfo(timezone)).date()
+
+    # Compute stats range
+    days = 7 if period == PeriodType.WEEK else 30
+
+    range_start = today_local - timedelta(days=days - 1)
+    range_end = today_local
+
+    daily_records_period = await build_date_totals_collection(
+        db, days, range_start, range_end
+    )
+
+    # Compute totals
+    today_total = daily_records_period[-1].seconds
+    period_total = sum(record.seconds for record in daily_records_period)
+
+    # Prepare graph data
+    graph_data = Graph(
+        days=days,
+        records=daily_records_period
+    )
+
+    # Prepare heatmap data
+    heatmap_days = 30 if period == PeriodType.WEEK else 365
+
+    heatmap_start = today_local - timedelta(days=heatmap_days - 1)
+    heatmap_end = today_local
+    
+    daily_records_heatmap = await build_date_totals_collection(
+        db, heatmap_days, heatmap_start, heatmap_end
+    )
+
+    heatmap_data = Heatmap(
+        days=heatmap_days,
+        records=daily_records_heatmap
+    )
+
+    # Select top hosts by time spent within stats range
+    stmt = (
+        select(
+            HostModel.id,
+            HostModel.name,
+            func.sum(DailyTimeBucketModel.duration_seconds)
+        )
+        .join(DailyTimeBucketModel)
+        .where(DailyTimeBucketModel.date.between(range_start, range_end))
+        .group_by(HostModel.id)
+        .order_by(func.sum(DailyTimeBucketModel.duration_seconds).desc())
+        .limit(5)
+    )
+    result = await db.execute(stmt)
+    hosts = result.all()
+
+    # Prepare top hosts data
+    top_hosts = TopHosts(
+        total=len(hosts),
+        hosts=[
+            Host(id=host_id, hostname=hostname, seconds=total_seconds)
+            for host_id, hostname, total_seconds in hosts
+        ]
+    )
+
+    # Build complete response model
+    stats = Statistics(
+        period=period,
+        range_start=range_start.isoformat(),
+        range_end=range_end.isoformat(),
+        today_total=today_total,
+        period_total=period_total,
+        graph=graph_data,
+        heatmap=heatmap_data,
+        top_hosts=top_hosts
+    )
+
+    return stats
 
 @router.delete("/all", status_code=status.HTTP_200_OK)
 async def wipe_all_time(
