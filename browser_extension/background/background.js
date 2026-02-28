@@ -159,6 +159,7 @@ async function flushSessions() {
   if (unsentSessions.length > 0) {
     const payload = {
       total: unsentSessions.length,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       sessions: unsentSessions
     };
 

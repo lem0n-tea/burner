@@ -58,5 +58,3 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   });
 });
-
-console.log(Intl.DateTimeFormat().resolvedOptions().timeZone);
