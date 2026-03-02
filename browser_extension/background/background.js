@@ -5,6 +5,7 @@ let timeByHost = {};
 let unsentSessions = [];
 
 const STORAGE_KEY = "time_tracking_state";
+const BACKEND_STATS_KEY = "backend_time_stats";
 
 const FLUSH_INTERVAL_MS = 1 * 30 * 1000; // 0.5 minutes
 const MAX_SESSION_MS = 15 * 60 * 1000; // 15 minutes
@@ -268,6 +269,15 @@ async function fetchStatistics(period = "week") {
         }
 
         const data = await response.json();
+
+        await browser.storage.local.set({
+            [BACKEND_STATS_KEY]: {
+                period,
+                fetchedAt: new Date().toISOString(),
+                data
+            }
+        });
+
         return data;
 
     } catch (error) {
