@@ -11,6 +11,8 @@ const MAX_SESSION_MS = 15 * 60 * 1000; // 15 minutes
 let flushInterval = null;
 let isFlushing = false;
 
+const API_BASE = "http://127.0.0.1:8000";
+
 const FILTERS_KEY = "tracking_filters";
 let trackingMode = "WHITELIST"; // "ALL" | "WHITELIST"
 let whitelist = new Set();
@@ -164,7 +166,7 @@ async function flushSessions() {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/time/flush", {
+      const response = await fetch(`${API_BASE}/time/flush/mock`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -238,6 +240,40 @@ async function loadFilters() {
       whitelist = new Set(filters.list); 
     }
   }
+}
+
+/* -----------------------------
+   Stats retrieval
+----------------------------- */
+
+async function fetchStatistics(period = "week") {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const url = new URL(`${API_BASE}/time/stats`);
+    url.searchParams.append("period", period);
+    url.searchParams.append("timezone", timezone);
+
+    try {
+        const response = await fetch(url.toString(), {
+            method: "GET",
+            headers: {
+                "Content-Type": "application/json",
+                // Uncomment if using auth
+                // "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error ${response.status}`);
+        }
+
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        console.error("Failed to fetch statistics:", error);
+        throw error;
+    }
 }
 
 /* -----------------------------
@@ -355,6 +391,18 @@ browser.storage.onChanged.addListener(async (changes, area) => {
     // Re-evaluate current host under new rules
     await switchToHost(activeHost);
   }
+});
+
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+
+    if (message.type === "GET_STATISTICS") {
+        fetchStatistics(message.period)
+            .then(data => sendResponse({ success: true, data }))
+            .catch(error => sendResponse({ success: false, error: error.message }));
+
+        // Required for async response in Firefox
+        return true;
+    }
 });
 
 // Save active session on browser shutdown

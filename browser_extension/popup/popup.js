@@ -57,4 +57,34 @@ document.addEventListener("DOMContentLoaded", async () => {
       [FILTERS_KEY]: { mode: trackingMode }
     });
   });
+
+  // Fetch stats button logic
+  const fetchBtn = document.getElementById("fetchStatsBtn");
+
+  fetchBtn.addEventListener("click", async () => {
+    fetchBtn.disabled = true;
+    fetchBtn.textContent = "Loading...";
+
+    try {
+      await loadStatistics("week");
+    } catch (err) {
+      console.error(err);
+    }
+
+    fetchBtn.disabled = false;
+    fetchBtn.textContent = "Fetch Weekly Stats";
+  });
 });
+
+async function loadStatistics(period) {
+    const response = await browser.runtime.sendMessage({
+        type: "GET_STATISTICS",
+        period: period
+    });
+
+    if (response.success) {
+        console.log("Statistics:", response.data);
+    } else {
+        console.error("Error:", response.error);
+    }
+}
