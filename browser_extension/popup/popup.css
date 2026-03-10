@@ -1,8 +1,8 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  width: 250px;
-  height: 200px;
+  width: 320px;
+  height: 520px;
 }
 
 .container {
@@ -19,4 +19,103 @@ body {
   margin-top: 8px;
   font-size: 20px;
   font-weight: bold;
+}
+
+.stats {
+  margin-top: 10px;
+  text-align: left;
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stats-card {
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  padding: 8px;
+  background: #fafafa;
+}
+
+.stats-label {
+  font-size: 12px;
+  color: #666;
+}
+
+.stats-value {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.section-title {
+  margin-top: 12px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 90px;
+  padding: 8px;
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.bar {
+  flex: 1;
+  min-width: 0;
+  border-radius: 6px 6px 2px 2px;
+  background: #4f46e5;
+  opacity: 0.9;
+}
+
+.bar.zero {
+  background: #e5e7eb;
+  opacity: 1;
+}
+
+.bar:hover {
+  opacity: 1;
+}
+
+.top-hosts {
+  border: 1px solid #e6e6e6;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.top-host {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.top-host:first-child {
+  border-top: none;
+}
+
+.top-host .host {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 210px;
+  font-size: 13px;
+}
+
+.top-host .secs {
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  color: #333;
 }

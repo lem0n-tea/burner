@@ -26,10 +26,217 @@ let tickInterval = null;
    Utilities
 ----------------------------- */
 
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function formatLocalDateYYYYMMDD(date, timeZone) {
+  const dtf = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  });
+  // en-CA yields YYYY-MM-DD for just y/m/d
+  return dtf.format(date);
+}
+
+function getLocalYMDParts(date, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(
+    parts
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value])
+  );
+
+  return {
+    year: Number(map.year),
+    month: Number(map.month),
+    day: Number(map.day)
+  };
+}
+
+function getTimeZoneOffsetMs(timeZone, date) {
+  // Offset = (time interpreted in tz as UTC) - (actual UTC time)
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false
+  }).formatToParts(date);
+
+  const map = Object.fromEntries(
+    parts
+      .filter((p) => p.type !== "literal")
+      .map((p) => [p.type, p.value])
+  );
+
+  const asUTC = Date.UTC(
+    Number(map.year),
+    Number(map.month) - 1,
+    Number(map.day),
+    Number(map.hour),
+    Number(map.minute),
+    Number(map.second)
+  );
+
+  return asUTC - date.getTime();
+}
+
+function zonedTimeToUtcMs({ year, month, day, hour, minute, second }, timeZone) {
+  // Convert a wall-clock time in `timeZone` into a UTC instant (ms).
+  // Uses a 2-pass offset refinement to handle DST changes.
+  let utcGuess = Date.UTC(year, month - 1, day, hour, minute, second);
+  let offset = getTimeZoneOffsetMs(timeZone, new Date(utcGuess));
+  let utc = utcGuess - offset;
+  let offset2 = getTimeZoneOffsetMs(timeZone, new Date(utc));
+  if (offset2 !== offset) {
+    utc = utcGuess - offset2;
+  }
+  return utc;
+}
+
+function splitIntoDailyBucketsUtcToLocalDate(startUtcMs, endUtcMs, timeZone) {
+  // Mirrors backend/app/time_splitting.py: split UTC session into local calendar days.
+  if (!Number.isFinite(startUtcMs) || !Number.isFinite(endUtcMs)) return [];
+  if (endUtcMs <= startUtcMs) return [];
+
+  const buckets = [];
+  let currentUtcMs = startUtcMs;
+
+  while (currentUtcMs < endUtcMs) {
+    const currentDate = new Date(currentUtcMs);
+    const { year, month, day } = getLocalYMDParts(currentDate, timeZone);
+    const localDateStr = `${year}-${pad2(month)}-${pad2(day)}`;
+
+    const nextDayUtcMs = Date.UTC(year, month - 1, day) + 24 * 60 * 60 * 1000;
+    const nextDay = new Date(nextDayUtcMs);
+    const nextLocal = {
+      year: nextDay.getUTCFullYear(),
+      month: nextDay.getUTCMonth() + 1,
+      day: nextDay.getUTCDate()
+    };
+
+    const nextMidnightUtcMs = zonedTimeToUtcMs(
+      { ...nextLocal, hour: 0, minute: 0, second: 0 },
+      timeZone
+    );
+
+    const segmentEndUtcMs = Math.min(nextMidnightUtcMs, endUtcMs);
+    const durationSeconds = Math.floor((segmentEndUtcMs - currentUtcMs) / 1000);
+
+    if (durationSeconds > 0) {
+      buckets.push([localDateStr, durationSeconds]);
+    }
+
+    currentUtcMs = segmentEndUtcMs;
+  }
+
+  return buckets;
+}
+
+function mergeStatisticsWithLocalOverlay(stats, sessions, timeZone) {
+  if (!stats || !sessions || sessions.length === 0) return stats;
+
+  const merged = structuredClone(stats);
+
+  const rangeStart = merged.range_start; // YYYY-MM-DD
+  const rangeEnd = merged.range_end; // YYYY-MM-DD
+
+  const graphByDate = new Map(
+    (merged.graph?.records || []).map((r) => [r.date, r])
+  );
+  const heatmapByDate = new Map(
+    (merged.heatmap?.records || []).map((r) => [r.date, r])
+  );
+
+  const overlayGraphTotal = { seconds: 0 };
+  const overlayHeatmapTotal = { seconds: 0 };
+  const overlayTopHosts = new Map(); // host -> seconds in graph range
+
+  for (const s of sessions) {
+    const startMs = Date.parse(s.start);
+    const endMs = Date.parse(s.end);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) {
+      continue;
+    }
+
+    const buckets = splitIntoDailyBucketsUtcToLocalDate(startMs, endMs, timeZone);
+    for (const [dateStr, seconds] of buckets) {
+      if (seconds <= 0) continue;
+
+      const graphRec = graphByDate.get(dateStr);
+      if (graphRec && dateStr >= rangeStart && dateStr <= rangeEnd) {
+        graphRec.seconds += seconds;
+        overlayGraphTotal.seconds += seconds;
+        overlayTopHosts.set(s.host, (overlayTopHosts.get(s.host) || 0) + seconds);
+      }
+
+      const heatRec = heatmapByDate.get(dateStr);
+      if (heatRec) {
+        heatRec.seconds += seconds;
+        overlayHeatmapTotal.seconds += seconds;
+      }
+    }
+  }
+
+  // Totals
+  merged.period_total = (merged.period_total || 0) + overlayGraphTotal.seconds;
+  const todayRec = graphByDate.get(rangeEnd);
+  if (todayRec) {
+    merged.today_total = todayRec.seconds;
+  } else {
+    merged.today_total = (merged.today_total || 0) + 0;
+  }
+
+  // Top hosts (merge + re-sort + cap to 5)
+  const existing = (merged.top_hosts?.hosts || []).map((h) => ({
+    id: h.id ?? null,
+    hostname: h.hostname,
+    seconds: h.seconds
+  }));
+
+  const byHost = new Map(existing.map((h) => [h.hostname, { ...h }]));
+  for (const [host, seconds] of overlayTopHosts.entries()) {
+    const prev = byHost.get(host);
+    if (prev) {
+      prev.seconds += seconds;
+    } else {
+      byHost.set(host, { id: null, hostname: host, seconds });
+    }
+  }
+
+  const mergedHosts = Array.from(byHost.values())
+    .filter((h) => h.seconds > 0)
+    .sort((a, b) => b.seconds - a.seconds)
+    .slice(0, 5);
+
+  if (merged.top_hosts) {
+    merged.top_hosts.hosts = mergedHosts;
+    merged.top_hosts.total = mergedHosts.length;
+  }
+
+  return merged;
+}
+
 function normalizeHostname(hostname) {
   if (!hostname) return null;
-  const parts = hostname.replace(/^www\./, "").split(".");
-  return parts.length <= 2 ? hostname : parts.slice(-2).join(".");
+  const cleaned = String(hostname)
+    .trim()
+    .toLowerCase()
+    .replace(/\.+$/, "") // strip trailing dot(s)
+    .replace(/^www\./, "");
+  return cleaned || null;
 }
 
 function getHostFromUrl(url) {
@@ -167,7 +374,7 @@ async function flushSessions() {
     };
 
     try {
-      const response = await fetch(`${API_BASE}/time/flush/mock`, {
+      const response = await fetch(`${API_BASE}/time/flush`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -269,16 +476,17 @@ async function fetchStatistics(period = "week") {
         }
 
         const data = await response.json();
+        const merged = mergeStatisticsWithLocalOverlay(data, unsentSessions, timezone);
 
         await browser.storage.local.set({
             [BACKEND_STATS_KEY]: {
                 period,
                 fetchedAt: new Date().toISOString(),
-                data
+                data: merged
             }
         });
 
-        return data;
+        return merged;
 
     } catch (error) {
         console.error("Failed to fetch statistics:", error);

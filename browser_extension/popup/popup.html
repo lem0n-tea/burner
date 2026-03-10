@@ -21,6 +21,25 @@
       <hr />
 
       <button id="fetchStatsBtn">Fetch Weekly Stats</button>
+
+      <div class="stats">
+        <div class="stats-row">
+          <div class="stats-card">
+            <div class="stats-label">Today</div>
+            <div class="stats-value" id="todayTotal">--</div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-label">Period</div>
+            <div class="stats-value" id="periodTotal">--</div>
+          </div>
+        </div>
+
+        <div class="section-title">Daily</div>
+        <div class="chart" id="dailyChart" aria-label="Daily time chart"></div>
+
+        <div class="section-title">Top sites</div>
+        <div class="top-hosts" id="topHosts"></div>
+      </div>
     </div>
 
     <script src="popup.js"></script>

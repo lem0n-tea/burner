@@ -6,11 +6,24 @@ const siteEl = document.querySelector(".site");
 const statusEl = document.querySelector(".tracking-status");
 const timeEl = document.querySelector(".time");
 
+const todayTotalEl = document.getElementById("todayTotal");
+const periodTotalEl = document.getElementById("periodTotal");
+const dailyChartEl = document.getElementById("dailyChart");
+const topHostsEl = document.getElementById("topHosts");
+
 // Format milliseconds to "X min Y sec"
 function formatTime(ms) {
   const sec = Math.floor(ms / 1000);
   const min = Math.floor(sec / 60);
   return `${min} min ${sec % 60} sec`;
+}
+
+function formatSecondsHuman(seconds) {
+  const s = Math.max(0, Math.floor(seconds));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
 }
 
 // Open persistent connection to background
@@ -74,6 +87,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     fetchBtn.disabled = false;
     fetchBtn.textContent = "Fetch Weekly Stats";
   });
+
+  // Load once on open (best-effort)
+  try {
+    await loadStatistics("week");
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 async function loadStatistics(period) {
@@ -83,8 +103,49 @@ async function loadStatistics(period) {
     });
 
     if (response.success) {
-        console.log("Statistics:", response.data);
+        renderStatistics(response.data);
     } else {
         console.error("Error:", response.error);
     }
+}
+
+function renderStatistics(stats) {
+  if (!stats) return;
+
+  todayTotalEl.textContent = formatSecondsHuman(stats.today_total);
+  periodTotalEl.textContent = formatSecondsHuman(stats.period_total);
+
+  // Daily chart (simple bars)
+  const records = stats.graph?.records || [];
+  const maxSeconds = records.reduce((m, r) => Math.max(m, r.seconds || 0), 0) || 1;
+  dailyChartEl.innerHTML = "";
+
+  for (const r of records) {
+    const bar = document.createElement("div");
+    const seconds = r.seconds || 0;
+    const pct = Math.max(0.03, seconds / maxSeconds) * 100;
+    bar.className = `bar${seconds === 0 ? " zero" : ""}`;
+    bar.style.height = `${seconds === 0 ? 6 : pct}%`;
+    bar.title = `${r.date}: ${formatSecondsHuman(seconds)}`;
+    dailyChartEl.appendChild(bar);
+  }
+
+  // Top hosts list
+  const hosts = stats.top_hosts?.hosts || [];
+  topHostsEl.innerHTML = "";
+  if (hosts.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "top-host";
+    empty.innerHTML = `<div class="host">No data</div><div class="secs">--</div>`;
+    topHostsEl.appendChild(empty);
+    return;
+  }
+
+  for (const h of hosts) {
+    const row = document.createElement("div");
+    row.className = "top-host";
+    const host = h.hostname || "(unknown)";
+    row.innerHTML = `<div class="host">${host}</div><div class="secs">${formatSecondsHuman(h.seconds || 0)}</div>`;
+    topHostsEl.appendChild(row);
+  }
 }
