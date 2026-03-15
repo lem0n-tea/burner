@@ -5,8 +5,8 @@ __pycache__/
 .venv/
 .env.*
 
-#Experimental
-browser_extension/popup_exp/
+# Internal docs
+docs/
 
 # Alembic
 alembic.ini

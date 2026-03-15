@@ -6,6 +6,7 @@
 
 import { browserAPI } from "../lib/browser-api.js";
 import { normalizeHost, generateUUID } from "../lib/utils.js";
+import { saveSession, getMeta, setMeta, getAllSessions } from "../lib/storage.js";
 
 // Configuration
 const INACTIVITY_TIMEOUT_MS = 60000; // 60 seconds
@@ -20,13 +21,36 @@ browserAPI.runtime.onInstalled.addListener((details) => {
     reason: details.reason,
     previousVersion: details.previousVersion
   });
-  
+
   // Handle extension restart - close any orphaned sessions
   closeOrphanedSessions();
+  
+  // Initialize metadata with timezone
+  initializeMeta();
 });
 
 // Log extension startup
 console.log("Burner background service worker started");
+
+// Initialize metadata on startup (for non-install loads)
+initializeMeta();
+
+/**
+ * Initialize metadata with user timezone
+ */
+async function initializeMeta() {
+  try {
+    const meta = await getMeta();
+    if (!meta.timezone) {
+      // Get browser's timezone
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      await setMeta({ timezone });
+      console.log(`Storage: Initialized timezone to ${timezone}`);
+    }
+  } catch (e) {
+    console.error("Failed to initialize metadata:", e);
+  }
+}
 
 /**
  * Start a new session for a tab
@@ -72,37 +96,44 @@ async function closeSession(tabId, reason = "unknown") {
   
   // Set end time
   session.end = new Date().toISOString();
-  
+
   console.log(`Session closed: ${session.id} for ${session.host} on tab ${tabId} (reason: ${reason})`);
-  
+
   // Persist to storage
   await saveSession(session);
-  
+
   // Remove from active sessions
   activeSessions.delete(tabId);
-  
+
   // Clear inactivity timer
   clearInactivityTimer(tabId);
 }
 
 /**
- * Save a closed session to storage
+ * Close orphaned sessions on extension startup
  */
-async function saveSession(session) {
+async function closeOrphanedSessions() {
   try {
-    const result = await browserAPI.storage.local.get({ sessions: {} });
-    const sessions = result.sessions || {};
-    sessions[session.id] = {
-      id: session.id,
-      host: session.host,
-      start: session.start,
-      end: session.end,
-      synced: false
-    };
-    await browserAPI.storage.local.set({ sessions });
-    console.log(`Session ${session.id} saved to storage`);
+    const sessions = await getAllSessions();
+    
+    // Find any sessions without end time (shouldn't happen, but safety check)
+    const orphans = [];
+    for (const [id, session] of Object.entries(sessions)) {
+      if (!session.end) {
+        session.end = new Date().toISOString();
+        orphans.push(session);
+      }
+    }
+    
+    if (orphans.length > 0) {
+      // Save the corrected sessions
+      for (const session of orphans) {
+        await saveSession(session);
+      }
+      console.log(`Closed ${orphans.length} orphaned sessions`);
+    }
   } catch (e) {
-    console.error("Failed to save session:", e);
+    console.error("Failed to close orphaned sessions:", e);
   }
 }
 
@@ -137,32 +168,6 @@ function clearInactivityTimer(tabId) {
 function resetInactivityTimer(tabId) {
   if (activeSessions.has(tabId)) {
     startInactivityTimer(tabId);
-  }
-}
-
-/**
- * Close orphaned sessions on extension startup
- */
-async function closeOrphanedSessions() {
-  try {
-    const result = await browserAPI.storage.local.get({ sessions: {} });
-    const sessions = result.sessions || {};
-    
-    // Find any sessions without end time (shouldn't happen, but safety check)
-    let hasOrphans = false;
-    for (const [id, session] of Object.entries(sessions)) {
-      if (!session.end) {
-        session.end = new Date().toISOString();
-        hasOrphans = true;
-        console.log(`Closed orphaned session: ${id}`);
-      }
-    }
-    
-    if (hasOrphans) {
-      await browserAPI.storage.local.set({ sessions });
-    }
-  } catch (e) {
-    console.error("Failed to close orphaned sessions:", e);
   }
 }
 
