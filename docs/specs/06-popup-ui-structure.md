@@ -1,4 +1,4 @@
-# 06 - Popup UI Structure
+# 06 - Popup UI Structure (Firefox)
 
 ## Why
 
@@ -20,6 +20,7 @@ Implement popup HTML/CSS structure with header, period tabs, live clock, period 
 - Period total: HH:MM format
 - Graph container for daily totals
 - Top 5 hosts list
+- Use ES modules for scripts
 
 ### Must Not
 
@@ -161,4 +162,4 @@ Implement popup HTML/CSS structure with header, period tabs, live clock, period 
 6. Graph: placeholder bars visible
 7. Top hosts: 5 placeholder rows visible
 8. Overlays: open and close without errors
-9. Test in both Chrome and Firefox
+9. Test in Firefox only

@@ -1,4 +1,4 @@
-# 07 - Popup Live Statistics
+# 07 - Popup Live Statistics (Firefox)
 
 ## Why
 
@@ -19,6 +19,7 @@ Implement data fetching from backend (`GET /stats`), timezone-aware merging of l
 - Update period total every second (HH:MM)
 - Split sessions spanning multiple local dates across date buckets
 - Use `Intl.DateTimeFormat` for timezone conversion
+- Use ES modules for imports
 
 ### Must Not
 

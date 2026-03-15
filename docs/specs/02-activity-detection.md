@@ -1,4 +1,4 @@
-# 02 - Activity Detection
+# 02 - Activity Detection (Firefox)
 
 ## Why
 
@@ -14,8 +14,9 @@ Implement content script that listens for user interactions (mouse, keyboard, sc
 
 - Listen for: `mousemove`, `mousedown`, `keydown`, `scroll`, `touchstart`, `visibilitychange`
 - Throttle pings to background (max once per 5 seconds)
-- Use `browserAPI.runtime.sendMessage` for communication
+- Use `browser.runtime.sendMessage` for communication
 - Handle page visibility changes
+- Use ES modules for imports
 
 ### Must Not
 
@@ -33,7 +34,7 @@ Implement content script that listens for user interactions (mouse, keyboard, sc
 
 - Project scaffold complete (Spec 01)
 - Content script shell exists at `browser_extension/content/content-script.js`
-- Cross-browser wrapper available at `browser_extension/lib/browser-api.js`
+- Browser API module available at `browser_extension/lib/browser-api.js`
 
 ## Tasks
 
@@ -90,7 +91,7 @@ Implement content script that listens for user interactions (mouse, keyboard, sc
 ## Validation
 
 1. Open a web page, move mouse repeatedly
-2. Check background console: should see ~1 activity ping per 5 seconds
+2. Check Browser Toolbox console: should see ~1 activity ping per 5 seconds
 3. Switch to another tab, return: visibility change detected
 4. Close and reopen browser: content script re-injects without errors
-5. Test in both Chrome and Firefox
+5. Test in Firefox only

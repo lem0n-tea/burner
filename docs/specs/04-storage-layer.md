@@ -1,4 +1,4 @@
-# 04 - Storage Layer
+# 04 - Storage Layer (Firefox)
 
 ## Why
 
@@ -17,6 +17,7 @@ Implement storage abstraction layer for sessions CRUD, metadata management, unse
 - Track sync status per session (`synced: boolean`)
 - Store metadata: `lastSyncAt`, `retryBackoff`, `timezone`
 - Prune sessions older than 30 days after successful sync
+- Use ES modules for imports
 
 ### Must Not
 

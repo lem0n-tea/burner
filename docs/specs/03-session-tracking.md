@@ -1,4 +1,4 @@
-# 03 - Session Tracking
+# 03 - Session Tracking (Firefox)
 
 ## Why
 
@@ -18,6 +18,7 @@ Implement background script logic to start, maintain, and close sessions based o
 - Normalize hostname: lowercase, strip `www.` prefix
 - Store sessions in `browser.storage.local`
 - Use UUID for session IDs
+- Use ES modules for imports
 
 ### Must Not
 
@@ -91,7 +92,7 @@ normalizeHost("www.google.com")  // → "google.com"
 
 ### T5: Listen to Tab Events
 
-**What:** Register listeners for `tabs.onActivated`, `tabs.onRemoved`, `tabs.onUpdated`
+**What:** Register listeners for `browser.tabs.onActivated`, `browser.tabs.onRemoved`, `browser.tabs.onUpdated`
 
 **Files:** `browser_extension/background/background.js`
 
@@ -99,7 +100,7 @@ normalizeHost("www.google.com")  // → "google.com"
 
 ### T6: Listen to Window Focus Events
 
-**What:** Register listeners for `windows.onFocusChanged`
+**What:** Register listeners for `browser.windows.onFocusChanged`
 
 **Files:** `browser_extension/background/background.js`
 
@@ -138,4 +139,4 @@ normalizeHost("www.google.com")  // → "google.com"
 3. Visit site, stop interacting for 65s → session auto-closes at 60s
 4. Check storage: sessions stored with correct structure
 5. Restart browser: no orphaned open sessions
-6. Test in both Chrome and Firefox
+6. Test in Firefox only

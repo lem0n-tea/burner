@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Burner",
+  "version": "0.1.0",
+  "description": "Track your web browsing time and build better habits",
+  "permissions": [
+    "storage",
+    "tabs",
+    "alarms",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "scripts": ["background/background.js"],
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Burner - Time Tracker"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "burner@burner.local",
+      "strict_min_version": "109.0"
+    }
+  }
+}

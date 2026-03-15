@@ -1,29 +1,32 @@
-# 01 - Project Scaffold
+# 01 - Project Scaffold (Firefox)
 
 ## Why
 
-Establish the foundational extension structure with manifest, directory layout, and cross-browser compatibility layer. This is the first step before any tracking logic can be implemented.
+Establish the foundational Firefox extension structure with manifest, directory layout, and browser-specific APIs. This is the first step before any tracking logic can be implemented.
 
 ## What
 
-Create a minimal WebExtension with manifest.json, background script, content script, and popup shell that loads without errors in both Chrome and Firefox.
+Create a minimal WebExtension with manifest.json, background script, content script, and popup shell that loads without errors in Firefox.
 
 ## Constraints
 
 ### Must
 
-- Use Manifest V3 format
-- Support both Chrome and Firefox via `browserAPI` wrapper
-- Vanilla JavaScript only (no frameworks)
+- Use Manifest V3 format (Firefox 109+)
+- Use `browser` API namespace (Firefox standard)
+- Vanilla JavaScript with ES modules
 - Permissions: `storage`, `tabs`, `alarms`, `scripting`
+- Firefox-specific settings in `browser_specific_settings`
 
 ### Must Not
 
+- No Chrome-specific code or fallbacks
 - No external dependencies or build tools
 - No tracking logic yet (just scaffolding)
 
 ### Out of Scope
 
+- Chrome browser support
 - Actual session tracking
 - Network communication
 - UI styling beyond basic structure
@@ -60,37 +63,37 @@ browser_extension/
 
 **Verify:** Directory structure created
 
-### T2: Create Cross-Browser Wrapper
+### T2: Create Browser API Module
 
-**What:** Implement `browserAPI` wrapper that works with both `browser` (Firefox) and `chrome` (Chrome) namespaces
+**What:** Export `browser` API wrapper as ES module
 
 **Files:** `browser_extension/lib/browser-api.js`
 
 **Verify:**
 ```js
-const browserAPI = typeof browser !== "undefined" ? browser : chrome;
-// Wrapper should expose: storage, tabs, alarms, runtime
+export const browserAPI = browser;
+// Firefox uses browser.* namespace with promise-based APIs
 ```
 
 ### T3: Create Manifest.json
 
-**What:** Write Manifest V3 configuration with required permissions and script registrations
+**What:** Write Manifest V3 configuration for Firefox with required permissions
 
 **Files:** `browser_extension/manifest.json`
 
-**Verify:** Manifest loads without errors in Chrome (`chrome://extensions/`) and Firefox (`about:debugging`)
+**Verify:** Manifest loads without errors in Firefox (`about:debugging`)
 
-### T4: Create Background Script Shell
+### T4: Create Background Script Module
 
-**What:** Minimal background service worker that registers on install
+**What:** ES module background script that logs on install
 
 **Files:** `browser_extension/background/background.js`
 
-**Verify:** Background script loads (check console in extension dev tools)
+**Verify:** Background script loads (check Browser Toolbox console)
 
-### T5: Create Content Script Shell
+### T5: Create Content Script Module
 
-**What:** Minimal content script that logs injection
+**What:** ES module content script that logs injection
 
 **Files:** `browser_extension/content/content-script.js`
 
@@ -106,8 +109,7 @@ const browserAPI = typeof browser !== "undefined" ? browser : chrome;
 
 ## Validation
 
-1. Load extension in Chrome (Developer Mode → Load unpacked)
-2. Load extension in Firefox (about:debugging → Load Temporary Add-on)
-3. Verify no console errors in either browser
-4. Verify popup opens without errors
-5. Verify content script injects on any HTTP/HTTPS page
+1. Load extension in Firefox (`about:debugging` → Load Temporary Add-on)
+2. Verify no console errors in Browser Toolbox
+3. Verify popup opens without errors
+4. Verify content script logs on HTTP/HTTPS pages

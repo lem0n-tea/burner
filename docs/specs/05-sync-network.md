@@ -1,4 +1,4 @@
-# 05 - Sync & Network Layer
+# 05 - Sync & Network Layer (Firefox)
 
 ## Why
 
@@ -18,6 +18,7 @@ Implement network layer with periodic sync scheduler, POST to `/time/flush`, exp
 - Exponential backoff on failures (with jitter)
 - Handle 4xx errors by dropping invalid sessions
 - Send UTC timestamps (no pre-conversion for bucketing)
+- Use ES modules for imports
 
 ### Must Not
 
