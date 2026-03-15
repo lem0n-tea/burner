@@ -2,10 +2,17 @@
  * Burner Background Script
  * 
  * Orchestrates tracking, session lifecycle, storage, and sync.
- * This is the main entry point for the extension's background logic.
  */
 
 import { browserAPI } from "../lib/browser-api.js";
+import { normalizeHost, generateUUID } from "../lib/utils.js";
+
+// Configuration
+const INACTIVITY_TIMEOUT_MS = 60000; // 60 seconds
+
+// In-memory state
+const activeSessions = new Map(); // tabId -> session object
+const inactivityTimers = new Map(); // tabId -> timeout ID
 
 // Log extension installation
 browserAPI.runtime.onInstalled.addListener((details) => {
@@ -13,39 +20,291 @@ browserAPI.runtime.onInstalled.addListener((details) => {
     reason: details.reason,
     previousVersion: details.previousVersion
   });
+  
+  // Handle extension restart - close any orphaned sessions
+  closeOrphanedSessions();
 });
 
 // Log extension startup
 console.log("Burner background service worker started");
 
 /**
- * Handle messages from content scripts
- * Note: sender.tab is available for messages from content scripts
+ * Start a new session for a tab
  */
-browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Get tab ID from sender (content scripts always have sender.tab)
+function startSession(tabId, hostname) {
+  const normalizedHost = normalizeHost(hostname);
+  
+  if (!normalizedHost) {
+    console.log("Cannot start session: invalid hostname");
+    return;
+  }
+  
+  // Don't start if session already exists for this tab
+  if (activeSessions.has(tabId)) {
+    console.log(`Session already active for tab ${tabId}`);
+    return;
+  }
+  
+  const session = {
+    id: generateUUID(),
+    host: normalizedHost,
+    start: new Date().toISOString(),
+    end: null,
+    tabId: tabId
+  };
+  
+  activeSessions.set(tabId, session);
+  console.log(`Session started: ${session.id} for ${normalizedHost} on tab ${tabId}`);
+  
+  // Start inactivity timer
+  startInactivityTimer(tabId);
+}
+
+/**
+ * Close a session for a tab
+ */
+async function closeSession(tabId, reason = "unknown") {
+  const session = activeSessions.get(tabId);
+  
+  if (!session) {
+    return;
+  }
+  
+  // Set end time
+  session.end = new Date().toISOString();
+  
+  console.log(`Session closed: ${session.id} for ${session.host} on tab ${tabId} (reason: ${reason})`);
+  
+  // Persist to storage
+  await saveSession(session);
+  
+  // Remove from active sessions
+  activeSessions.delete(tabId);
+  
+  // Clear inactivity timer
+  clearInactivityTimer(tabId);
+}
+
+/**
+ * Save a closed session to storage
+ */
+async function saveSession(session) {
+  try {
+    const result = await browserAPI.storage.local.get({ sessions: {} });
+    const sessions = result.sessions || {};
+    sessions[session.id] = {
+      id: session.id,
+      host: session.host,
+      start: session.start,
+      end: session.end,
+      synced: false
+    };
+    await browserAPI.storage.local.set({ sessions });
+    console.log(`Session ${session.id} saved to storage`);
+  } catch (e) {
+    console.error("Failed to save session:", e);
+  }
+}
+
+/**
+ * Start inactivity timer for a tab
+ */
+function startInactivityTimer(tabId) {
+  clearInactivityTimer(tabId);
+  
+  const timerId = setTimeout(async () => {
+    console.log(`Inactivity timeout for tab ${tabId}`);
+    await closeSession(tabId, "inactivity");
+  }, INACTIVITY_TIMEOUT_MS);
+  
+  inactivityTimers.set(tabId, timerId);
+}
+
+/**
+ * Clear inactivity timer for a tab
+ */
+function clearInactivityTimer(tabId) {
+  const timerId = inactivityTimers.get(tabId);
+  if (timerId) {
+    clearTimeout(timerId);
+    inactivityTimers.delete(tabId);
+  }
+}
+
+/**
+ * Reset inactivity timer (called on activity ping)
+ */
+function resetInactivityTimer(tabId) {
+  if (activeSessions.has(tabId)) {
+    startInactivityTimer(tabId);
+  }
+}
+
+/**
+ * Close orphaned sessions on extension startup
+ */
+async function closeOrphanedSessions() {
+  try {
+    const result = await browserAPI.storage.local.get({ sessions: {} });
+    const sessions = result.sessions || {};
+    
+    // Find any sessions without end time (shouldn't happen, but safety check)
+    let hasOrphans = false;
+    for (const [id, session] of Object.entries(sessions)) {
+      if (!session.end) {
+        session.end = new Date().toISOString();
+        hasOrphans = true;
+        console.log(`Closed orphaned session: ${id}`);
+      }
+    }
+    
+    if (hasOrphans) {
+      await browserAPI.storage.local.set({ sessions });
+    }
+  } catch (e) {
+    console.error("Failed to close orphaned sessions:", e);
+  }
+}
+
+/**
+ * Handle activity ping from content script
+ */
+async function handleActivityPing(message, sender) {
+  const tabId = sender.tab?.id;
+  const hostname = message.hostname;
+  
+  if (!tabId) {
+    console.log("Activity ping: no tab ID");
+    return;
+  }
+  
+  // Check if window is focused (get window info)
+  try {
+    const window = await browserAPI.windows.get(sender.tab.windowId);
+    if (!window.focused) {
+      // Window not focused, don't track
+      return;
+    }
+  } catch (e) {
+    console.log("Could not get window info:", e);
+    return;
+  }
+  
+  // Check if tab is active
+  if (!sender.tab.active) {
+    console.log("Activity ping from inactive tab, ignoring");
+    return;
+  }
+  
+  // Start or continue session
+  if (!activeSessions.has(tabId)) {
+    startSession(tabId, hostname);
+  } else {
+    // Reset inactivity timer for existing session
+    resetInactivityTimer(tabId);
+  }
+}
+
+/**
+ * Handle visibility change from content script
+ */
+async function handleVisibilityChange(message, sender) {
   const tabId = sender.tab?.id;
   
-  console.log("Background received message:", message, "from tab:", tabId);
+  if (!tabId) return;
+  
+  if (!message.visible) {
+    // Tab became hidden, close session
+    await closeSession(tabId, "tab_hidden");
+  }
+}
+
+/**
+ * Handle tab activation
+ */
+async function handleTabActivated(activeInfo) {
+  const { tabId, windowId } = activeInfo;
+  
+  // Close session on previous tab (if any) - it's no longer active
+  // The new active tab will start its own session when it sends activity ping
+  
+  // Check if window is focused
+  try {
+    const window = await browserAPI.windows.get(windowId);
+    if (!window.focused) {
+      // Window not focused, don't start tracking yet
+      return;
+    }
+  } catch (e) {
+    console.log("Could not get window info:", e);
+  }
+  
+  console.log(`Tab activated: ${tabId} in window ${windowId}`);
+}
+
+/**
+ * Handle tab closed
+ */
+async function handleTabRemoved(tabId, removeInfo) {
+  console.log(`Tab removed: ${tabId}`);
+  await closeSession(tabId, "tab_closed");
+}
+
+/**
+ * Handle tab URL change
+ */
+async function handleTabUpdated(tabId, changeInfo, tabInfo) {
+  // If URL changed and we have an active session, check if host changed
+  if (changeInfo.url && activeSessions.has(tabId)) {
+    const session = activeSessions.get(tabId);
+    const newHost = normalizeHost(new URL(changeInfo.url).hostname);
+    
+    if (newHost !== session.host) {
+      // Host changed, close old session
+      console.log(`Host changed from ${session.host} to ${newHost}`);
+      await closeSession(tabId, "host_changed");
+      // New session will start when activity ping comes from new host
+    }
+  }
+}
+
+/**
+ * Handle window focus change
+ */
+async function handleWindowFocusChanged(windowId) {
+  if (windowId === browserAPI.windows.WINDOW_ID_NONE) {
+    // All windows lost focus - close all active sessions
+    console.log("Window lost focus, closing all sessions");
+    const tabIds = Array.from(activeSessions.keys());
+    for (const tabId of tabIds) {
+      await closeSession(tabId, "window_blur");
+    }
+  }
+}
+
+// Register message listener
+browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Background received message:", message);
   
   switch (message.type) {
     case "ACTIVITY_PING":
-      console.log(`Activity ping from tab ${tabId} on ${message.hostname}`);
-      // Session tracking will be implemented in Spec 03
+      handleActivityPing(message, sender);
       break;
       
     case "VISIBILITY_CHANGE":
-      console.log(`Visibility change on tab ${tabId}: ${message.visible ? "visible" : "hidden"}`);
-      // Session tracking will be implemented in Spec 03
+      handleVisibilityChange(message, sender);
       break;
       
     default:
       console.log("Unknown message type:", message.type);
   }
   
-  // Acknowledge receipt
   sendResponse({ received: true });
-  
-  // Keep message channel open for async response (not needed here but good practice)
   return false;
 });
+
+// Register event listeners
+browserAPI.tabs.onActivated.addListener(handleTabActivated);
+browserAPI.tabs.onRemoved.addListener(handleTabRemoved);
+browserAPI.tabs.onUpdated.addListener(handleTabUpdated);
+browserAPI.windows.onFocusChanged.addListener(handleWindowFocusChanged);
