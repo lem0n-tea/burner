@@ -121,24 +121,27 @@ function updateGraphBars() {
     bar.style.height = `${height}%`;
     graphBarsContainer.appendChild(bar);
 
-    // Create label (only show some labels for month view to avoid crowding)
-    if (numDays === 7) {
+    // Create label
+    if (currentPeriod === "week") {
+      // Show day initial for each bar
       const label = document.createElement("span");
       label.className = "graph-label";
       label.textContent = dayLabels[i];
       graphLabelsContainer.appendChild(label);
-    } else if (numDays === 30 && i % 5 === 0) {
-      // Show every 5th day label for month view
-      const label = document.createElement("span");
-      label.className = "graph-label";
-      label.textContent = i + 1;
-      graphLabelsContainer.appendChild(label);
-    } else if (numDays === 30) {
-      // Empty spacer for non-labeled days
-      const spacer = document.createElement("span");
-      spacer.className = "graph-label";
-      spacer.textContent = "";
-      graphLabelsContainer.appendChild(spacer);
+    } else {
+      // Month view: show date every 5 days to avoid crowding
+      if (i % 5 === 0) {
+        const label = document.createElement("span");
+        label.className = "graph-label";
+        label.textContent = (i + 1).toString();
+        graphLabelsContainer.appendChild(label);
+      } else {
+        // Empty spacer for non-labeled days
+        const spacer = document.createElement("span");
+        spacer.className = "graph-label";
+        spacer.textContent = "";
+        graphLabelsContainer.appendChild(spacer);
+      }
     }
   }
 }
