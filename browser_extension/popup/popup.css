@@ -1,34 +1,326 @@
 /* Burner Popup Styles */
 
+/* ===== CSS Variables ===== */
+:root {
+  --color-primary: #4a90d9;
+  --color-primary-dark: #3a7bc8;
+  --color-bg: #ffffff;
+  --color-bg-secondary: #f5f7fa;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #666666;
+  --color-text-muted: #999999;
+  --color-border: #e0e0e0;
+  --color-hover: #f0f0f0;
+  --color-active: #e8f0fe;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* ===== Reset & Base ===== */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+html, body {
+  width: 360px;
+  height: 520px;
+  overflow: hidden;
+  font-family: var(--font-family);
   font-size: 14px;
   line-height: 1.5;
-  color: #333;
-  background-color: #fff;
-  width: 360px;
-  min-height: 200px;
+  color: var(--color-text);
+  background-color: var(--color-bg);
 }
 
-.container {
-  padding: 24px;
-  text-align: center;
+/* ===== Popup Content Container ===== */
+.popup-content {
+  display: flex;
+  flex-direction: column;
+  height: 520px;
+  padding: 16px;
 }
 
-h1 {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1a1a1a;
+/* ===== Header ===== */
+.popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 12px;
 }
 
-.placeholder-text {
-  color: #666;
+.popup-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.icon-btn:hover {
+  background-color: var(--color-hover);
+}
+
+.icon-btn .icon {
+  font-size: 18px;
+}
+
+/* ===== Period Tabs ===== */
+.period-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 16px;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-bg);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab-btn:hover {
+  background-color: var(--color-hover);
+}
+
+.tab-btn.active {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+
+/* ===== Clock Section ===== */
+.clock-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.live-clock {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -1px;
+}
+
+.clock-label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+/* ===== Period Total ===== */
+.period-total {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 16px;
+}
+
+/* ===== Graph Section ===== */
+.graph-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.graph-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 12px 8px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-md);
+  gap: 8px;
+}
+
+.graph-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px;
+  height: 80px;
+}
+
+.graph-bar {
+  flex: 1;
+  background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  min-width: 8px;
+  transition: height 0.3s ease;
+}
+
+.graph-bar:hover {
+  opacity: 0.8;
+}
+
+.graph-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.graph-label {
+  flex: 1;
+  text-align: center;
+  font-size: 10px;
+  color: var(--color-text-muted);
+}
+
+/* ===== Top Hosts Section ===== */
+.top-hosts-section {
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.top-hosts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.host-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.host-row:hover {
+  background-color: var(--color-hover);
+}
+
+.hostname {
+  font-size: 13px;
+  color: var(--color-text);
+  font-weight: 500;
+}
+
+.host-row .time {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Overlays ===== */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 360px;
+  height: 520px;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.overlay:not(.hidden) {
+  opacity: 1;
+  visibility: visible;
+}
+
+.overlay-content {
+  width: 85%;
+  max-width: 280px;
+  background-color: var(--color-bg);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.overlay-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.overlay-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.close-overlay-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--color-text-muted);
+  transition: all 0.15s ease;
+}
+
+.close-overlay-btn:hover {
+  background-color: var(--color-hover);
+  color: var(--color-text);
+}
+
+.overlay-body {
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.overlay-body p {
+  color: var(--color-text-secondary);
   font-size: 14px;
+}
+
+/* ===== Utility Classes ===== */
+.hidden {
+  display: none !important;
 }

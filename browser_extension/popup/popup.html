@@ -7,10 +7,113 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Burner - Coming Soon</h1>
-    <p class="placeholder-text">Your time tracking dashboard is being built.</p>
+  <!-- Main Content -->
+  <div class="popup-content">
+    <!-- Header: Profile | Title | Settings -->
+    <header class="popup-header">
+      <button id="profile-btn" class="icon-btn" title="Profile">
+        <span class="icon">👤</span>
+      </button>
+      <h1 class="popup-title">Burner</h1>
+      <button id="settings-btn" class="icon-btn" title="Settings">
+        <span class="icon">⚙️</span>
+      </button>
+    </header>
+
+    <!-- Period Tabs: Week | Month -->
+    <nav class="period-tabs">
+      <button class="tab-btn active" data-period="week">Week</button>
+      <button class="tab-btn" data-period="month">Month</button>
+    </nav>
+
+    <!-- Live Clock: Today Total (HH:MM:SS) -->
+    <div class="clock-section">
+      <div id="today-total" class="live-clock">00:00:00</div>
+      <div class="clock-label">Today</div>
+    </div>
+
+    <!-- Period Total (HH:MM) -->
+    <div id="period-total" class="period-total">00:00</div>
+
+    <!-- Graph Container: Daily Totals -->
+    <div class="graph-section">
+      <div id="graph-container" class="graph-container">
+        <div class="graph-bars">
+          <!-- 7 or 30 bars will be generated dynamically -->
+          <div class="graph-bar" style="height: 20%;"></div>
+          <div class="graph-bar" style="height: 40%;"></div>
+          <div class="graph-bar" style="height: 60%;"></div>
+          <div class="graph-bar" style="height: 30%;"></div>
+          <div class="graph-bar" style="height: 80%;"></div>
+          <div class="graph-bar" style="height: 50%;"></div>
+          <div class="graph-bar" style="height: 70%;"></div>
+        </div>
+        <div class="graph-labels">
+          <span class="graph-label">M</span>
+          <span class="graph-label">T</span>
+          <span class="graph-label">W</span>
+          <span class="graph-label">T</span>
+          <span class="graph-label">F</span>
+          <span class="graph-label">S</span>
+          <span class="graph-label">S</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Top Hosts List -->
+    <div class="top-hosts-section">
+      <h2 class="section-title">Top Hosts</h2>
+      <div id="top-hosts" class="top-hosts-list">
+        <div class="host-row">
+          <span class="hostname">example.com</span>
+          <span class="time">01:23</span>
+        </div>
+        <div class="host-row">
+          <span class="hostname">google.com</span>
+          <span class="time">00:45</span>
+        </div>
+        <div class="host-row">
+          <span class="hostname">github.com</span>
+          <span class="time">00:32</span>
+        </div>
+        <div class="host-row">
+          <span class="hostname">youtube.com</span>
+          <span class="time">00:28</span>
+        </div>
+        <div class="host-row">
+          <span class="hostname">reddit.com</span>
+          <span class="time">00:15</span>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <!-- Profile Overlay -->
+  <div id="profile-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <div class="overlay-header">
+        <h2>Profile</h2>
+        <button class="close-overlay-btn" data-overlay="profile-overlay">&times;</button>
+      </div>
+      <div class="overlay-body">
+        <p>Profile settings coming soon.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Overlay -->
+  <div id="settings-overlay" class="overlay hidden">
+    <div class="overlay-content">
+      <div class="overlay-header">
+        <h2>Settings</h2>
+        <button class="close-overlay-btn" data-overlay="settings-overlay">&times;</button>
+      </div>
+      <div class="overlay-body">
+        <p>Settings coming soon.</p>
+      </div>
+    </div>
+  </div>
+
   <script type="module" src="popup.js"></script>
 </body>
 </html>
