@@ -1,12 +1,13 @@
 /**
  * Burner Background Script
- * 
+ *
  * Orchestrates tracking, session lifecycle, storage, and sync.
  */
 
 import { browserAPI } from "../lib/browser-api.js";
 import { normalizeHost, generateUUID } from "../lib/utils.js";
 import { saveSession, getMeta, setMeta, getAllSessions } from "../lib/storage.js";
+import { initSync, handleAlarm } from "./sync.js";
 
 // Configuration
 const INACTIVITY_TIMEOUT_MS = 60000; // 60 seconds
@@ -24,9 +25,12 @@ browserAPI.runtime.onInstalled.addListener((details) => {
 
   // Handle extension restart - close any orphaned sessions
   closeOrphanedSessions();
-  
+
   // Initialize metadata with timezone
   initializeMeta();
+
+  // Initialize sync scheduler
+  initSync();
 });
 
 // Log extension startup
@@ -34,6 +38,9 @@ console.log("Burner background service worker started");
 
 // Initialize metadata on startup (for non-install loads)
 initializeMeta();
+
+// Initialize sync scheduler on startup
+initSync();
 
 /**
  * Initialize metadata with user timezone
@@ -313,3 +320,4 @@ browserAPI.tabs.onActivated.addListener(handleTabActivated);
 browserAPI.tabs.onRemoved.addListener(handleTabRemoved);
 browserAPI.tabs.onUpdated.addListener(handleTabUpdated);
 browserAPI.windows.onFocusChanged.addListener(handleWindowFocusChanged);
+browserAPI.alarms.onAlarm.addListener(handleAlarm);

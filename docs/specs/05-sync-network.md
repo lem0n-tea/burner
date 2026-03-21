@@ -47,9 +47,10 @@ Implement network layer with periodic sync scheduler, POST to `/time/flush`, exp
 **Files:** `browser_extension/lib/network.js`
 
 **API:**
+
 ```js
-Network.postSessions(sessions, timezone)
-Network.getStats(period, timezone)
+Network.postSessions(sessions, timezone);
+Network.getStats(period, timezone);
 ```
 
 **Verify:** Basic fetch calls work to backend
@@ -61,12 +62,13 @@ Network.getStats(period, timezone)
 **Files:** `browser_extension/lib/network.js`
 
 **Payload:**
+
 ```js
 {
   total: sessions.length, // count of sessions, NOT sum of seconds
   timezone: "Europe/Berlin",
   sessions: [
-    { id, host, start, end } // all UTC ISO strings
+    { id, host, start, end } // start and end are UTC ISO strings
   ]
 }
 ```
@@ -88,6 +90,7 @@ Network.getStats(period, timezone)
 **Files:** `browser_extension/background/sync.js`
 
 **Verify:**
+
 - Unsent sessions collected from storage
 - POST request sent to `/time/flush`
 - On success: sessions marked `synced: true`
