@@ -229,7 +229,7 @@ async def get_time_statistics(
         .where(DailyTimeBucketModel.date.between(range_start, range_end))
         .group_by(HostModel.id)
         .order_by(func.sum(DailyTimeBucketModel.duration_seconds).desc())
-        .limit(5)
+        .limit(3)
     )
     result = await db.execute(stmt)
     hosts = result.all()

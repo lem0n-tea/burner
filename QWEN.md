@@ -36,12 +36,15 @@ burner/
 │       │   ├── hosts.py              # Host table (hostname → id)
 │       │   └── daily_time_buckets.py # Aggregated seconds per host/date
 │       ├── routers/
-│       │   └── time.py    # Main API endpoints (/time/*)
+│       │   ├── time.py    # Main API endpoints (/time/*)
+│       │   ├── hosts.py   # Host management endpoints
+│       │   └── groups.py  # Group management endpoints
 │       └── migrations/    # Alembic migrations
 ├── browser_extension/
 │   ├── manifest.json         # Extension configuration (MV3)
 │   ├── background/
-│   │   └── background.js     # Tracking orchestration
+│   │   ├── background.js     # Tracking orchestration
+│   │   └── sync.js           # Periodic sync scheduler
 │   ├── content/
 │   │   └── content-script.js # Activity detection
 │   ├── popup/
@@ -51,7 +54,8 @@ burner/
 │   └── lib/
 │       ├── browser-api.js    # Cross-browser wrapper
 │       ├── storage.js        # Storage abstraction
-│       └── utils.js          # Utilities
+│       ├── network.js        # Fetch wrapper with error handling
+│       └── utils.js          # Utilities (hostname normalization, UUID)
 └── docs/
     ├── burner_design_doc.md  # Extension design specification
     └── spec_template.md      # Feature spec template
@@ -183,6 +187,8 @@ uvicorn backend.app.main:app --reload
 - Sessions with `end <= start` are rejected
 - Extension normalizes hostnames: lowercase, strip `www.` prefix
 - Inactivity timeout: 60 seconds (extension closes session)
+- Sync interval: 2 minutes (configurable in `sync.js`)
+- Session retention: 30 days for synced sessions
 
 ## Extension Architecture
 
@@ -191,9 +197,11 @@ uvicorn backend.app.main:app --reload
 | Component | Purpose |
 |-----------|---------|
 | `background.js` | Orchestrates tracking, session lifecycle, storage, sync |
-| `content-script.js` | Injected into pages, detects user activity |
-| `popup.html/js/css` | UI displaying statistics |
+| `content-script.js` | Injected into pages, detects user activity (mouse, keyboard, scroll) |
+| `popup.html/js/css` | UI displaying statistics with live updating totals |
+| `sync.js` | Periodic sync scheduler with exponential backoff |
 | `lib/storage.js` | Abstraction over `browser.storage.local` |
+| `lib/network.js` | Fetch wrapper with timeout, error handling, retry logic |
 | `lib/browser-api.js` | Cross-browser wrapper (`browser` vs `chrome`) |
 | `lib/utils.js` | Utilities (hostname normalization, UUID generation) |
 
@@ -206,8 +214,15 @@ uvicorn backend.app.main:app --reload
 ### Storage Layout
 
 - `sessions`: Object mapping `id` → session object `{id, host, start, end, synced}`
-- `meta`: `{ timezone, lastSyncAt, ... }`
+- `meta`: `{ timezone, lastSyncAt, syncBackoffMinutes, backendUrl, ... }`
 - Retention: 30 days for synced sessions
+
+### Sync Behavior
+
+- Periodic sync every 2 minutes via `alarms` API
+- Exponential backoff on network/server errors (max 60 minutes)
+- 422 validation errors trigger dropping all unsent sessions
+- Sessions marked as `synced: true` after successful POST
 
 ## Files to Reference When Working
 
@@ -219,7 +234,9 @@ uvicorn backend.app.main:app --reload
 | Update config | `config.py`, `.env` |
 | Add migration | `migrations/versions/` |
 | Extension tracking logic | `background/background.js` |
+| Extension sync logic | `background/sync.js` |
 | Extension storage | `lib/storage.js` |
+| Extension network | `lib/network.js` |
 | Extension UI | `popup/popup.html`, `popup/popup.js` |
 
 ## Testing
@@ -234,8 +251,8 @@ python -m pytest
 ## Design Documentation
 
 See `docs/burner_design_doc.md` for complete extension specification including:
-- UX requirements
-- API contracts
-- Timezone handling details
-- Cross-browser considerations
-- Testing guidelines
+- UX requirements (no-scroll popup, live updating totals)
+- API contracts (POST `total` = `sessions.length`, GET query params)
+- Timezone handling details (server-side bucketing, client-side UI merging)
+- Cross-browser considerations (Firefox/Chrome via `browserAPI` wrapper)
+- Testing guidelines (DST boundaries, GET/POST param validation)

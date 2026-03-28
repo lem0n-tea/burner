@@ -297,20 +297,26 @@ async function handleWindowFocusChanged(windowId) {
 // Register message listener
 browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   console.log("Background received message:", message);
-  
+
   switch (message.type) {
     case "ACTIVITY_PING":
       handleActivityPing(message, sender);
       break;
-      
+
     case "VISIBILITY_CHANGE":
       handleVisibilityChange(message, sender);
       break;
-      
+
+    case "GET_ACTIVE_SESSION":
+      // Return the active session for the sender's tab or first active session
+      const session = activeSessions.values().next().value;
+      sendResponse({ session: session || null });
+      return true; // Keep channel open for async response
+
     default:
       console.log("Unknown message type:", message.type);
   }
-  
+
   sendResponse({ received: true });
   return false;
 });

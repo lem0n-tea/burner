@@ -5,5 +5,8 @@ __pycache__/
 .venv/
 .env.*
 
+# Design docs and feature specs
+/docs/
+
 # Alembic
 alembic.ini

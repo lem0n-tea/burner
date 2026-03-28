@@ -252,3 +252,66 @@ export async function clearAllStorage() {
     throw e;
   }
 }
+
+/**
+ * Cache stats response for a period and timezone
+ * @param {string} period - "week" or "month"
+ * @param {string} timezone - IANA timezone name
+ * @param {Object} stats - Stats data to cache
+ * @returns {Promise<void>}
+ */
+export async function setCachedStats(period, timezone, stats) {
+  try {
+    const meta = await getMeta();
+    const cacheKey = `stats_${period}_${timezone}`;
+    const statsCache = meta.statsCache || {};
+    
+    statsCache[cacheKey] = {
+      data: stats,
+      cachedAt: new Date().toISOString()
+    };
+    
+    await setMeta({ ...meta, statsCache });
+    console.log(`Storage: Cached stats for ${period}/${timezone}`);
+  } catch (e) {
+    console.error("Storage: Failed to cache stats:", e);
+  }
+}
+
+/**
+ * Get cached stats for a period and timezone
+ * @param {string} period - "week" or "month"
+ * @param {string} timezone - IANA timezone name
+ * @returns {Promise<Object|null>} Cached stats or null
+ */
+export async function getCachedStats(period, timezone) {
+  try {
+    const meta = await getMeta();
+    const cacheKey = `stats_${period}_${timezone}`;
+    const statsCache = meta.statsCache || {};
+    return statsCache[cacheKey]?.data || null;
+  } catch (e) {
+    console.error("Storage: Failed to get cached stats:", e);
+    return null;
+  }
+}
+
+/**
+ * Get active session from storage (sessions without end time)
+ * @returns {Promise<Object|null>} Active session or null
+ */
+export async function getActiveSession() {
+  try {
+    const sessions = await getAllSessions();
+    // Find session without end time (active session)
+    for (const session of Object.values(sessions)) {
+      if (!session.end) {
+        return session;
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("Storage: Failed to get active session:", e);
+    return null;
+  }
+}
