@@ -126,6 +126,7 @@ async function loadAndRenderData() {
     // Render all components
     renderTodayTotal(mergedData);
     renderPeriodTotal(mergedData);
+    renderActiveHost();
     renderGraph(mergedData);
     renderTopHosts(mergedData);
 
@@ -275,7 +276,7 @@ function renderTodayTotal(data) {
  */
 function renderPeriodTotal(data) {
   const periodTotalEl = document.getElementById("period-total");
-  
+
   // Include active session time if running
   let periodTotal = data.period_total;
   if (activeSession) {
@@ -288,8 +289,24 @@ function renderPeriodTotal(data) {
       }
     }
   }
-  
+
   periodTotalEl.textContent = formatTimeHM(periodTotal);
+}
+
+/**
+ * Render active hostname and tracking indicator
+ */
+function renderActiveHost() {
+  const hostnameEl = document.getElementById("active-hostname");
+  const indicatorEl = document.getElementById("tracking-indicator");
+
+  if (activeSession) {
+    hostnameEl.textContent = activeSession.host;
+    indicatorEl.classList.remove("hidden");
+  } else {
+    hostnameEl.textContent = "Not browsing";
+    indicatorEl.classList.add("hidden");
+  }
 }
 
 /**

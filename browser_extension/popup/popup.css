@@ -112,6 +112,50 @@ html, body {
   color: #ffffff;
 }
 
+/* ===== Active Host Section ===== */
+.active-host-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-height: 24px;
+}
+
+.tracking-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #28a745;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.tracking-indicator.hidden {
+  display: none;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.1);
+  }
+}
+
+.active-hostname {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 280px;
+}
+
 /* ===== Clock Section ===== */
 .clock-section {
   display: flex;
