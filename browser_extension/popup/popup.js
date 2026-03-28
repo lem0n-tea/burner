@@ -223,10 +223,10 @@ function mergeSessionData(serverStats, unsentSessions, activeSession, timezone) 
     seconds: dateTotals.get(record.date) || 0
   }));
 
-  // Rebuild top hosts with merged data
+  // Rebuild top hosts with merged data (limit to 3)
   const sortedHosts = Array.from(hostTotals.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+    .slice(0, 3);
 
   merged.top_hosts = {
     total: sortedHosts.length,
