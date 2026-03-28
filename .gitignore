@@ -6,7 +6,7 @@ __pycache__/
 .env.*
 
 # Design docs and feature specs
-/docs/
+docs/
 
 # Alembic
 alembic.ini
