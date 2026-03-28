@@ -163,7 +163,7 @@ html, body {
   padding: 12px 8px;
   background-color: var(--color-bg-secondary);
   border-radius: var(--radius-md);
-  gap: 8px;
+  gap: 4px;
   overflow: hidden;
 }
 
@@ -172,7 +172,7 @@ html, body {
   align-items: flex-end;
   justify-content: space-between;
   gap: 3px;
-  height: 80px;
+  height: 100px;
   width: 100%;
 }
 
@@ -188,22 +188,9 @@ html, body {
   opacity: 0.8;
 }
 
+/* Graph labels container hidden - axis labels removed */
 .graph-labels {
-  display: flex;
-  justify-content: space-between;
-  gap: 3px;
-  width: 100%;
-}
-
-.graph-label {
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-  font-size: 9px;
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
 }
 
 /* ===== Top Hosts Section ===== */

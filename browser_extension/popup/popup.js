@@ -297,20 +297,15 @@ function renderPeriodTotal(data) {
  */
 function renderGraph(data) {
   const graphBarsContainer = document.querySelector(".graph-bars");
-  const graphLabelsContainer = document.querySelector(".graph-labels");
 
   const records = data.graph.records;
   const numDays = records.length;
 
   // Clear existing bars
   graphBarsContainer.innerHTML = "";
-  graphLabelsContainer.innerHTML = "";
 
   // Find max seconds for scaling
   const maxSeconds = Math.max(...records.map(r => r.seconds), 1);
-
-  // Day labels for week view
-  const dayLabels = ["S", "M", "T", "W", "T", "F", "S"];
 
   for (let i = 0; i < numDays; i++) {
     const record = records[i];
@@ -322,32 +317,6 @@ function renderGraph(data) {
     bar.style.height = `${Math.max(percentage, 2)}%`; // Minimum 2% for visibility
     bar.title = `${record.date}: ${formatTimeHM(record.seconds)}`;
     graphBarsContainer.appendChild(bar);
-
-    // Create label
-    if (currentPeriod === "week") {
-      // Show day initial for each bar
-      const date = new Date(record.date + "T00:00:00");
-      const dayIndex = date.getUTCDay();
-      const label = document.createElement("span");
-      label.className = "graph-label";
-      label.textContent = dayLabels[dayIndex];
-      graphLabelsContainer.appendChild(label);
-    } else {
-      // Month view: show date every 5 days to avoid crowding
-      if (i % 5 === 0) {
-        const date = new Date(record.date + "T00:00:00");
-        const label = document.createElement("span");
-        label.className = "graph-label";
-        label.textContent = date.getUTCDate().toString();
-        graphLabelsContainer.appendChild(label);
-      } else {
-        // Empty spacer for non-labeled days
-        const spacer = document.createElement("span");
-        spacer.className = "graph-label";
-        spacer.textContent = "";
-        graphLabelsContainer.appendChild(spacer);
-      }
-    }
   }
 }
 
